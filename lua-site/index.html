@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lua Gist Creator — SUPRΛ Quantum Edition</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Space+Grotesk:wght@500;700&display=swap');
+
+    body {
+      font-family: 'Inter', 'Space Grotesk', sans-serif;
+      background: radial-gradient(150% 150% at 50% 0%, #060617 0%, #000000 100%);
+      color: #fff;
+      overflow: hidden;
+    }
+
+    canvas#particleCanvas {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      opacity: 0.35;
+    }
+
+    /* ✨ Glass UI Core */
+    .glass {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(30px) saturate(180%);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      box-shadow:
+        0 0 100px rgba(168, 85, 247, 0.5),
+        inset 0 0 40px rgba(255, 255, 255, 0.06);
+      border-radius: 2rem;
+      transition: all 0.6s ease;
+      animation: fadeIn 1s ease-out;
+    }
+    .glass:hover {
+      transform: translateY(-6px) scale(1.02);
+      box-shadow:
+        0 0 150px rgba(168, 85, 247, 0.6),
+        inset 0 0 50px rgba(255, 255, 255, 0.08);
+    }
+
+    .animate-gradient {
+      background-size: 300% 300%;
+      animation: gradientMove 6s ease infinite;
+    }
+    @keyframes gradientMove {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* 🌈 Loader */
+    .loader {
+      height: 5px;
+      width: 0%;
+      background: linear-gradient(90deg, #3b82f6, #9333ea, #ec4899, #22d3ee);
+      border-radius: 9999px;
+      box-shadow: 0 0 25px #9333ea90;
+      transition: width 0.6s ease;
+    }
+
+    /* 💎 Toast Notification */
+    #toast {
+      position: fixed;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 14px 28px;
+      border-radius: 9999px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      text-align: center;
+      color: white;
+      backdrop-filter: blur(16px) saturate(180%);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 0 50px rgba(255, 255, 255, 0.15);
+      transition: all 0.4s ease;
+      z-index: 100;
+    }
+
+    /* 🪩 Popup Dialog */
+    #popup {
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(12px);
+      display: none;
+    }
+    .popup-content {
+      background: rgba(30, 30, 40, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      box-shadow: 0 0 80px rgba(147, 51, 234, 0.4);
+      border-radius: 1.5rem;
+      animation: popupShow 0.4s ease forwards;
+      transform: scale(0.95);
+    }
+    @keyframes popupShow {
+      from { opacity: 0; transform: scale(0.85); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    /* 🧠 Debug Panel */
+    .debug-panel {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(0, 0, 0, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 16px;
+      padding: 12px 16px;
+      width: 300px;
+      max-height: 200px;
+      overflow-y: auto;
+      font-size: 12px;
+      color: #aaa;
+      font-family: monospace;
+      backdrop-filter: blur(10px);
+      transition: all 0.3s ease;
+      box-shadow: 0 0 20px rgba(147, 51, 234, 0.3);
+    }
+    .debug-panel:hover { background: rgba(20, 20, 30, 0.9); color: #fff; }
+
+    /* 🌌 Floating Auras */
+    .aura {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(160px);
+      mix-blend-mode: screen;
+      opacity: 0.4;
+      animation: float 18s ease-in-out infinite alternate;
+    }
+    .aura.blue { background: #3b82f6; top: -10%; left: 15%; width: 500px; height: 500px; }
+    .aura.purple { background: #9333ea; bottom: -20%; right: 10%; width: 600px; height: 600px; }
+    .aura.pink { background: #ec4899; top: 45%; left: 35%; width: 400px; height: 400px; opacity: 0.25; }
+
+    @keyframes float {
+      0% { transform: translate(0, 0); }
+      100% { transform: translate(60px, -100px); }
+    }
+
+    .footer {
+      position: absolute;
+      bottom: 15px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.9rem;
+      color: #9ca3af;
+      animation: pulse 3s infinite;
+    }
+    @keyframes pulse {
+      0%,100% { opacity: 0.3; }
+      50% { opacity: 1; }
+    }
+  </style>
+</head>
+
+<body class="flex items-center justify-center min-h-screen relative overflow-hidden">
+  <canvas id="particleCanvas"></canvas>
+  <div class="aura blue"></div>
+  <div class="aura purple"></div>
+  <div class="aura pink"></div>
+
+  <!-- 💎 Main Glass UI -->
+  <div class="glass relative p-10 w-full max-w-xl text-center z-10 border border-white/10">
+    <h1 class="text-4xl font-extrabold bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 animate-gradient text-transparent bg-clip-text mb-2 drop-shadow-[0_0_12px_rgba(147,51,234,0.4)]">
+      Lua Gist Creator
+    </h1>
+    <p class="text-gray-400 text-sm mb-8 italic">Next-gen Lua script sharing — powered by precision ✨</p>
+
+    <textarea id="code" placeholder="💡 Write your Lua code here..."
+      class="w-full h-64 p-4 rounded-xl bg-black/30 border border-white/10 text-sm text-gray-100 placeholder-gray-500 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300 shadow-inner font-mono"></textarea>
+
+    <div class="loader mt-5 mx-auto" id="loader"></div>
+
+    <button id="createRaw"
+      class="w-full mt-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 font-semibold hover:scale-[1.05] active:scale-[0.98] transition-all duration-300 shadow-lg shadow-purple-900/40 animate-gradient">
+      ⚡ Create Raw Link
+    </button>
+
+    <div class="mt-5">
+      <input id="rawLink" readonly 
+        class="w-full p-3 rounded-xl bg-black/40 border border-white/10 text-sm text-gray-300 placeholder-gray-500 focus:outline-none cursor-pointer"
+        placeholder="✨ Your raw link will appear here...">
+    </div>
+  </div>
+
+  <!-- ⚡ Toast -->
+  <div id="toast" class="hidden"></div>
+
+  <!-- 🚨 Popup -->
+  <div id="popup" class="fixed inset-0 flex items-center justify-center z-50">
+    <div class="popup-content glass p-8 w-80 text-center">
+      <h2 class="text-xl font-semibold mb-4 bg-gradient-to-r from-pink-400 to-purple-500 text-transparent bg-clip-text animate-gradient">Hey!</h2>
+      <p class="text-gray-300 text-sm mb-6">Please write some Lua code before creating a link.</p>
+      <button id="closePopup" class="px-5 py-2 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl font-medium hover:scale-[1.05] transition-all">Got it!</button>
+    </div>
+  </div>
+
+  <!-- 🧠 Debug -->
+  <div id="debugPanel" class="debug-panel hidden"></div>
+
+  <!-- 🦾 Footer -->
+  <div class="footer">
+    Crafted by <span class="bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 bg-clip-text text-transparent font-semibold animate-gradient">The_gamer652</span> ⚙️
+  </div>
+
+  <script>
+    const canvas = document.getElementById('particleCanvas');
+    const ctx = canvas.getContext('2d');
+    let particles = [];
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    class Particle {
+      constructor() {
+        this.x = Math.random() * canvas.width;
+        this.y = Math.random() * canvas.height;
+        this.size = Math.random() * 2 + 0.5;
+        this.speedX = (Math.random() - 0.5) * 0.4;
+        this.speedY = (Math.random() - 0.5) * 0.4;
+      }
+      update() {
+        this.x += this.speedX;
+        this.y += this.speedY;
+        if (this.x < 0 || this.x > canvas.width) this.speedX *= -1;
+        if (this.y < 0 || this.y > canvas.height) this.speedY *= -1;
+      }
+      draw() {
+        const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.size * 4);
+        gradient.addColorStop(0, 'rgba(255,255,255,0.9)');
+        gradient.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size * 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    function initParticles() {
+      particles = [];
+      for (let i = 0; i < 180; i++) particles.push(new Particle());
+    }
+
+    function animateParticles() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      particles.forEach(p => { p.update(); p.draw(); });
+      requestAnimationFrame(animateParticles);
+    }
+    initParticles();
+    animateParticles();
+
+    // === UI Logic ===
+    const loader = document.getElementById('loader');
+    const popup = document.getElementById('popup');
+    const closePopup = document.getElementById('closePopup');
+    const toast = document.getElementById('toast');
+    const debugPanel = document.getElementById('debugPanel');
+
+    const showToast = (msg, color = 'from-green-500 to-emerald-600') => {
+      toast.className = `fixed bottom-8 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-full bg-gradient-to-r ${color} text-white font-medium shadow-2xl transition-all duration-500`;
+      toast.textContent = msg;
+      toast.classList.remove('hidden');
+      toast.style.opacity = '1';
+      setTimeout(() => { toast.style.opacity = '0'; }, 3500);
+      setTimeout(() => toast.classList.add('hidden'), 4000);
+    };
+
+    const showPopup = () => { popup.style.display = 'flex'; };
+    const hidePopup = () => { popup.style.display = 'none'; };
+    closePopup.addEventListener('click', hidePopup);
+
+    const debugLog = (message) => {
+      debugPanel.classList.remove('hidden');
+      const time = new Date().toLocaleTimeString();
+      debugPanel.innerHTML = `<div>[${time}] ${message}</div>` + debugPanel.innerHTML;
+    };
+
+    document.getElementById('createRaw').addEventListener('click', async () => {
+      const code = document.getElementById('code').value;
+      if (!code.trim()) {
+        showPopup();
+        return;
+      }
+
+      loader.style.width = '0%';
+      setTimeout(() => { loader.style.width = '70%'; }, 50);
+
+      try {
+        const filename = 'script.lua';
+        debugLog('Sending request to /api/create-gist...');
+        const resp = await fetch('/api/create-gist', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code, filename })
+        });
+
+        if (!resp.ok) {
+          const text = await resp.text();
+          throw new Error(`HTTP ${resp.status}: ${text}`);
+        }
+
+        const data = await resp.json();
+        loader.style.width = '100%';
+        setTimeout(() => (loader.style.width = '0%'), 800);
+
+        if (data.raw) {
+          document.getElementById('rawLink').value = data.raw;
+          navigator.clipboard.writeText(data.raw);
+          debugLog('✅ Raw link created successfully: ' + data.raw);
+          showToast('✅ Raw link created & copied!');
+        } else {
+          throw new Error('Response missing raw link.');
+        }
+      } catch (err) {
+        loader.style.width = '0%';
+        debugLog('❌ Error creating gist: ' + err.message);
+        showToast(`❌ Error: ${err.message}`, 'from-red-500 to-pink-600');
+      }
+    });
+  </script>
+</body>
+</html>
